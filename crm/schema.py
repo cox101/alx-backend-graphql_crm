@@ -1,20 +1,13 @@
-# graphql_crm/schema.py
-
 import graphene
-from graphene_django.filter import DjangoFilterConnectionField
-from .models import Customer, Product, Order
-from .filters import CustomerFilter, ProductFilter, OrderFilter
 from graphene_django import DjangoObjectType
+from graphene_django.filter import DjangoFilterConnectionField
 
-from crm.schema import Query as CRMQuery, Mutation as CRMMutation
+from crm.models import Customer, Product, Order
+from crm.filters import CustomerFilter, ProductFilter, OrderFilter
 
-class Query(CRMQuery, graphene.ObjectType):
-    pass
-
-class Mutation(CRMMutation, graphene.ObjectType):
-    pass
-
-schema = graphene.Schema(query=Query, mutation=Mutation)
+# ========================
+# Node Definitions
+# ========================
 
 class CustomerNode(DjangoObjectType):
     class Meta:
@@ -22,11 +15,13 @@ class CustomerNode(DjangoObjectType):
         filterset_class = CustomerFilter
         interfaces = (graphene.relay.Node,)
 
+
 class ProductNode(DjangoObjectType):
     class Meta:
         model = Product
         filterset_class = ProductFilter
         interfaces = (graphene.relay.Node,)
+
 
 class OrderNode(DjangoObjectType):
     class Meta:
@@ -34,30 +29,10 @@ class OrderNode(DjangoObjectType):
         filterset_class = OrderFilter
         interfaces = (graphene.relay.Node,)
 
-class Query(graphene.ObjectType):
-    all_customers = DjangoFilterConnectionField(CustomerNode)
-    all_products = DjangoFilterConnectionField(ProductNode)
-    all_orders = DjangoFilterConnectionField(OrderNode)
-    customer = graphene.relay.Node.Field(CustomerNode)
-    product = graphene.relay.Node.Field(ProductNode)
-    order = graphene.relay.Node.Field(OrderNode)
-    def resolve_all_customers(self, info, **kwargs):
-        return Customer.objects.all()
-    def resolve_all_products(self, info, **kwargs):
-        return Product.objects.all()
-    def resolve_all_orders(self, info, **kwargs):
-        return Order.objects.all()
-class Mutation(graphene.ObjectType):
-    create_customer = CreateCustomer.Field()
-    bulk_create_customers = BulkCreateCustomers.Field()
-    update_customer = UpdateCustomer.Field()
-    delete_customer = DeleteCustomer.Field()
-    create_product = CreateProduct.Field()
-    update_product = UpdateProduct.Field()
-    delete_product = DeleteProduct.Field()
-    create_order = CreateOrder.Field()
-    update_order = UpdateOrder.Field()
-    delete_order = DeleteOrder.Field()
+# ========================
+# Mutations
+# ========================
+
 class CreateCustomer(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
@@ -70,9 +45,11 @@ class CreateCustomer(graphene.Mutation):
         customer = Customer(name=name, email=email, phone=phone)
         customer.save()
         return CreateCustomer(customer=customer)
+
+
 class BulkCreateCustomers(graphene.Mutation):
     class Arguments:
-        customers = graphene.List(graphene.NonNull(CustomerNode))
+        customers = graphene.List(graphene.JSONString)  # JSON input
 
     created_customers = graphene.List(CustomerNode)
     errors = graphene.List(graphene.String)
@@ -80,9 +57,9 @@ class BulkCreateCustomers(graphene.Mutation):
     def mutate(self, info, customers):
         created = []
         errors = []
-        for customer_data in customers:
+        for data in customers:
             try:
-                customer = Customer(name=customer_data.name, email=customer_data.email, phone=customer_data.phone)
+                customer = Customer(**data)
                 customer.full_clean()
                 customer.save()
                 created.append(customer)
@@ -90,3 +67,54 @@ class BulkCreateCustomers(graphene.Mutation):
                 errors.append(str(e))
         return BulkCreateCustomers(created_customers=created, errors=errors)
 
+
+class UpdateLowStockProducts(graphene.Mutation):
+    success = graphene.Boolean()
+    updated_products = graphene.List(graphene.String)
+
+    def mutate(self, info):
+        updated = []
+        for product in Product.objects.filter(stock__lt=10):
+            product.stock += 10
+            product.save()
+            updated.append(f"{product.name} - {product.stock}")
+        return UpdateLowStockProducts(success=True, updated_products=updated)
+
+
+# ========================
+# Main Mutation Class
+# ========================
+
+class Mutation(graphene.ObjectType):
+    create_customer = CreateCustomer.Field()
+    bulk_create_customers = BulkCreateCustomers.Field()
+    update_low_stock_products = UpdateLowStockProducts.Field()
+    # Extend here with more: update_customer, delete_order, etc.
+
+# ========================
+# Query Definitions
+# ========================
+
+class Query(graphene.ObjectType):
+    customer = graphene.relay.Node.Field(CustomerNode)
+    product = graphene.relay.Node.Field(ProductNode)
+    order = graphene.relay.Node.Field(OrderNode)
+
+    all_customers = DjangoFilterConnectionField(CustomerNode)
+    all_products = DjangoFilterConnectionField(ProductNode)
+    all_orders = DjangoFilterConnectionField(OrderNode)
+
+    def resolve_all_customers(self, info, **kwargs):
+        return Customer.objects.all()
+
+    def resolve_all_products(self, info, **kwargs):
+        return Product.objects.all()
+
+    def resolve_all_orders(self, info, **kwargs):
+        return Order.objects.all()
+
+# ========================
+# Final Schema
+# ========================
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

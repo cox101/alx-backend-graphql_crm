@@ -1,14 +1,17 @@
 #!/bin/bash
-cd /absolute/path/to/your/project || exit
-source /absolute/path/to/your/venv/bin/activate
 
-python3 manage.py shell << END
+# Move into project directory
+cd /absolute/path/to/alx-backend-graphql_crm || exit
+
+# Activate the virtual environment
+source /absolute/path/to/venv/bin/activate
+
+# Run Django shell command to delete inactive customers
+python3 manage.py shell <<EOF
 from datetime import datetime, timedelta
 from crm.models import Customer
 cutoff = datetime.now() - timedelta(days=365)
-deleted, _ = Customer.objects.filter(last_order_date__lt=cutoff).delete()
-with open("/tmp/customer_cleanup_log.txt", "a") as log:
-    log.write(f"{datetime.now()}: Deleted {deleted} inactive customers.\n")
-END
-# Ensure the script is executable
-chmod +x /absolute/path/to/your/project/clean_inactive_customers.sh
+deleted_count, _ = Customer.objects.filter(last_order_date__lt=cutoff).delete()
+with open("/tmp/customer_cleanup_log.txt", "a") as f:
+    f.write(f"{datetime.now()}: Deleted {deleted_count} inactive customers\n")
+EOF
