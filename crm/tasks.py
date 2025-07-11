@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 from celery import shared_task
 from gql import gql, Client
