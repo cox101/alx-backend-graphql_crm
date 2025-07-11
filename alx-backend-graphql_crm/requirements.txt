@@ -1,4 +1,0 @@
-django
-graphene-django
-gql
-django-crontab
