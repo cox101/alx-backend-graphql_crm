@@ -10,3 +10,6 @@ INSTALLED_APPS = [
 GRAPHENE = {
     'SCHEMA': 'alx_backend_graphql_crm.schema.schema',
 }
+CRONJOBS = [
+    ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'),
+]
