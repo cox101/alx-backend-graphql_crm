@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #!/bin/bash
 
 # Move into project directory
