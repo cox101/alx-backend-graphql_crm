@@ -1,4 +1,6 @@
-django
-graphene-django
-gql
-django-crontab
+Django>=3.0
+django-crontab>=0.7
+gql>=3.0
+requests>=2.0
+python-dateutil>=2.8
+pytz>=2020.1    
