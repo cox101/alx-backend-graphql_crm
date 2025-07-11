@@ -27,3 +27,27 @@ def log_crm_heartbeat():
         print("GraphQL Hello Response:", response)
     except Exception as e:
         print("GraphQL Health Check Failed:", e)
+
+def update_low_stock():
+    transport = RequestsHTTPTransport(
+        url='http://localhost:8000/graphql',
+        verify=True,
+        retries=3,
+    )
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+    mutation = gql("""
+        mutation {
+            updateLowStockProducts {
+                success
+                updatedProducts
+            }
+        }
+    """)
+    try:
+        result = client.execute(mutation)
+        timestamp = datetime.datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
+        with open("/tmp/low_stock_updates_log.txt", "a") as f:
+            f.write(f"{timestamp} Updated products: {result['updateLowStockProducts']['updatedProducts']}\n")
+    except Exception as e:
+        with open("/tmp/low_stock_updates_log.txt", "a") as f:
+            f.write(f"{timestamp} Error during update: {str(e)}\n")   
